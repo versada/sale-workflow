@@ -19,13 +19,13 @@
 #
 #
 
-{"name": "Sales Quotation Validity Date",
- "version": "8.0.7.0.0",
- "depends": ["sale"],
- "author": "Camptocamp,Odoo Community Association (OCA)",
- "category": "Sales",
- "website": "http://www.camptocamp.com",
- "description": """
+{
+    "name": "Sales Quotation Validity Date",
+    "version": "10.0.1.0.0",
+    "author": "Camptocamp,Odoo Community Association (OCA)",
+    "category": "Sales",
+    "website": "http://www.camptocamp.com",
+    "description": """
 Sale order validity date
 ========================
 
@@ -35,12 +35,16 @@ until when the quotation is valid.
 A default validity duration (in days) can be configured on the company.
 
 """,
- 'data': [
-     "view/sale_order.xml",
-     "view/company_view.xml",
- ],
- 'test': [
-     'test/sale_validity.yml',
- ],
- 'installable': False,
- }
+    "depends": [
+        "sale"
+    ],
+    'data': [
+        "view/sale_order.xml",
+        "view/company_view.xml",
+    ],
+    'test': [
+        'test/sale_validity.yml',
+    ],
+    'installable': True,
+    'application': False,
+}

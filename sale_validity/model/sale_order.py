@@ -40,7 +40,7 @@ class SaleOrder(models.Model):
         date_validity_str = False
         company_pool = self.env['res.company']
         company_id = company_pool._company_default_get('sale.order')
-        company = company_pool.browse(company_id)
+        company = company_pool.browse(company_id.id)
         if company.default_sale_order_validity_days:
             today_str = fields.Date.context_today(self)
             today = fields.Date.from_string(today_str)

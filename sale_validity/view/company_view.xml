@@ -13,10 +13,8 @@
     <field name="model">res.company</field>
     <field name="inherit_id" ref="base.view_company_form"/>
     <field name="arch" type="xml">
-        <xpath expr="//page[@string='Configuration']/group" position="inside">
-            <group name="sale_validity">
-                <field name="default_sale_order_validity_days"/>
-            </group>
+        <xpath expr="//field[@name='currency_id']" position="after">
+            <field name="default_sale_order_validity_days"/>
         </xpath>
     </field>
 </record>
