@@ -30,6 +30,12 @@ class SaleOrder(models.Model):
                 line.sequence = current_sequence
                 current_sequence += 1
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        res = super().create(vals_list)
+        res._reset_sequence()
+        return res
+
     def write(self, line_values):
         res = super(SaleOrder, self).write(line_values)
         self._reset_sequence()
