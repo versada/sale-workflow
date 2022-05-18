@@ -19,6 +19,12 @@ class SaleOrderCancel(models.TransientModel):
         compute="_compute_display_cancel_reason",
     )
 
+    need_description = fields.Boolean(related="reason_id.need_description")
+
+    reason_description = fields.Text(
+        string="Reason",
+    )
+
     display_cancel_reason = fields.Boolean(
         string="Display Cancel Reason",
         compute="_compute_display_cancel_reason",
@@ -36,4 +42,5 @@ class SaleOrderCancel(models.TransientModel):
         self.ensure_one()
         res = super().action_cancel()
         self.order_id.cancel_reason_id = self.reason_id
+        self.order_id.cancel_reason_description = self.reason_description
         return res

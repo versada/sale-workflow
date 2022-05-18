@@ -14,6 +14,7 @@
                         options='{"no_open": True}'
                     />
                 </h2>
+                <field name="cancel_reason_description" attrs="{'invisible': ['|', '|', ('state', '!=', 'cancel'), ('cancel_reason_description', '=', ''), ('cancel_reason_description', '=', False)]}"/>
             </xpath>
         </field>
     </record>
@@ -24,6 +25,7 @@
             <form string="Sale Order Cancel Reasons">
                 <field name="name" />
                 <group>
+                    <field name="need_description"/>
                     <field name="company_id"/>
                 </group>
             </form>
@@ -35,6 +37,7 @@
         <field name="arch" type="xml">
             <tree string="Sale Order Cancel Reasons">
                 <field name="name" />
+                <field name="need_description"/>
                 <field name="company_id"/>
             </tree>
         </field>

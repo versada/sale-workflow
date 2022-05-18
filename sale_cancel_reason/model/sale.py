@@ -14,6 +14,10 @@ class SaleOrder(models.Model):
         tracking=True,
     )
 
+    cancel_reason_description = fields.Text(
+        string="Cancel reason",
+    )
+
     def _show_cancel_wizard(self):
         res = super(SaleOrder, self)._show_cancel_wizard()
         for order in self:
@@ -40,4 +44,8 @@ class SaleOrderCancelReason(models.Model):
 
     company_id = fields.Many2one(
         comodel_name="res.company",
+    )
+
+    need_description = fields.Boolean(
+        string="Need Description",
     )
