@@ -16,6 +16,7 @@ class SaleOrder(models.Model):
 
     cancel_reason_description = fields.Text(
         string="Cancel reason",
+        readonly=True,
     )
 
     def _show_cancel_wizard(self):
