@@ -21,7 +21,7 @@ class SaleOrder(models.Model):
 
     def _show_cancel_wizard(self):
         res = super(SaleOrder, self)._show_cancel_wizard()
-        if not self._context.get('by_pass_cancel_readon', False):
+        if not self._context.get('by_pass_cancel_reason', False):
             for order in self:
                 raison_count = self.env["sale.order.cancel.reason"].search_count(
                     order._get_sale_order_cancel_reason_domain())
