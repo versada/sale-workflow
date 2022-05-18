@@ -21,11 +21,13 @@ class SaleOrder(models.Model):
 
     def _show_cancel_wizard(self):
         res = super(SaleOrder, self)._show_cancel_wizard()
-        for order in self:
-            raison_count = self.env["sale.order.cancel.reason"].search_count(
-                order._get_sale_order_cancel_reason_domain())
-            if raison_count > 0 and not order._context.get('disable_cancel_warning'):
-                return True
+        if not self._context.get('by_pass_cancel_readon', False):
+            for order in self:
+                raison_count = self.env["sale.order.cancel.reason"].search_count(
+                    order._get_sale_order_cancel_reason_domain())
+                if raison_count > 0 and \
+                    not order._context.get('disable_cancel_warning'):
+                    return True
         return res
 
     def _get_sale_order_cancel_reason_domain(self):
