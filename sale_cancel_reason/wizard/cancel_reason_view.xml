@@ -7,12 +7,14 @@
     <field name="arch" type="xml">
 
         <footer position="before">
-            <p class="oe_grey">
+            <field name="display_cancel_reason" invisible="1"/>
+            <field name="allowed_reason_ids" invisible="1"/>
+            <p class="oe_grey" attrs="{'invisible': [('display_cancel_reason', '=', False)]}">
                 Choose the reason for the cancellation of the
                 sale order.
             </p>
             <group>
-                <field name="reason_id" widget="selection" />
+                <field name="reason_id" widget="selection" attrs="{'invisible': [('display_cancel_reason', '=', False)]}" domain="[('id', 'in', allowed_reason_ids)]"/>
             </group>
         </footer>
 

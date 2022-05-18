@@ -14,9 +14,30 @@ class SaleOrder(models.Model):
         tracking=True,
     )
 
+    def _show_cancel_wizard(self):
+        res = super(SaleOrder, self)._show_cancel_wizard()
+        for order in self:
+            raison_count = self.env["sale.order.cancel.reason"].search_count(
+                order._get_sale_order_cancel_reason_domain())
+            if raison_count > 0 and not order._context.get('disable_cancel_warning'):
+                return True
+        return res
+
+    def _get_sale_order_cancel_reason_domain(self):
+        self.ensure_one()
+        return [
+            "|",
+            ("company_id", "=", self.company_id.id),
+            ("company_id", "=", False),
+        ]
+
 
 class SaleOrderCancelReason(models.Model):
     _name = "sale.order.cancel.reason"
     _description = "Sale Order Cancel Reason"
 
     name = fields.Char(string="Reason", required=True, translate=True)
+
+    company_id = fields.Many2one(
+        comodel_name="res.company",
+    )
