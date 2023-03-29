@@ -2,8 +2,10 @@
 # Copyright 2017 Pierre Faniel - Niboo SPRL (<https://www.niboo.be/>)
 # Copyright 2020 Tecnativa - Pedro M. Baeza
 # License AGPL-3 - See http://www.gnu.org/licenses/agpl-3.0.html
+from freezegun import freeze_time
 
 import odoo.tests.common as common
+from odoo import fields
 from odoo.tests import Form
 
 
@@ -39,6 +41,7 @@ class TestSaleOrderType(common.TransactionCase):
             [("type", "=", "sale")], limit=1
         )
         self.default_sale_type_id = self.env["sale.order.type"].search([], limit=1)
+        self.default_sale_type_id.sequence_id = False
         self.warehouse = self.env["stock.warehouse"].create(
             {"name": "Warehouse Test", "code": "WT"}
         )
@@ -58,6 +61,7 @@ class TestSaleOrderType(common.TransactionCase):
                 "payment_term_id": self.immediate_payment.id,
                 "pricelist_id": self.sale_pricelist.id,
                 "incoterm_id": self.free_carrier.id,
+                "quotation_validity_days": 10,
             }
         )
         self.sale_type_quot = self.sale_type_model.create(
@@ -70,6 +74,15 @@ class TestSaleOrderType(common.TransactionCase):
                 "payment_term_id": self.immediate_payment.id,
                 "pricelist_id": self.sale_pricelist.id,
                 "incoterm_id": self.free_carrier.id,
+            }
+        )
+        self.sale_type_sequence_default = self.sale_type_quot.copy(
+            {
+                "name": "Test Sequence default",
+                "sequence_id": self.env["sale.order"]
+                .with_context(force_company=self.env.company.id)
+                ._default_sequence_id()
+                .id,
             }
         )
         self.partner.sale_type = self.sale_type
@@ -209,3 +222,20 @@ class TestSaleOrderType(common.TransactionCase):
         order.onchange_type_id()
         self.assertEqual(order.type_id, self.sale_type_quot)
         self.assertTrue(order.name.startswith("TQU"))
+
+    @freeze_time("2022-01-01")
+    def test_sale_order_quotation_validity(self):
+        order = self.create_sale_order()
+        order.onchange_type_id()
+        self.assertEqual(fields.Date.to_string(order.validity_date), "2022-01-11")
+
+    def test_sequence_default(self):
+        """When the previous type had no sequence the order gets the default one. The
+        sequence change shouldn't be triggered, otherwise we'd get a different number
+        from the same sequence"""
+        self.partner.sale_type = self.default_sale_type_id
+        order = self.create_sale_order()
+        order.onchange_partner_id()
+        name = order.name
+        order.type_id = self.sale_type_sequence_default
+        self.assertEqual(name, order.name, "The sequence shouldn't change!")

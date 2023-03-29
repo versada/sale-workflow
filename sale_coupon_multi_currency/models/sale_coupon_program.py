@@ -16,6 +16,7 @@ class SaleCouponProgram(models.Model):
         related=None,
         compute="_compute_currency_id",
         inverse="_inverse_currency_id",
+        store=True,
     )
     currency_custom_id = fields.Many2one("res.currency", "Custom Currency")
 
@@ -27,3 +28,9 @@ class SaleCouponProgram(models.Model):
     def _inverse_currency_id(self):
         for rec in self:
             rec.currency_custom_id = rec.currency_id
+
+    @api.model
+    def create(self, vals):
+        if "currency_id" in vals and "currency_custom_id" not in vals:
+            vals["currency_custom_id"] = vals["currency_id"]
+        return super().create(vals)

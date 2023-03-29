@@ -3,7 +3,7 @@
 {
     "name": "Sale Elaboration",
     "summary": "Set an elaboration for any sale line",
-    "version": "13.0.1.0.0",
+    "version": "13.0.1.1.1",
     "development_status": "Production/Stable",
     "category": "Sale",
     "website": "https://github.com/OCA/sale-workflow",
@@ -20,4 +20,5 @@
         "views/sale_elaboration_report_views.xml",
         "reports/report_deliveryslip.xml",
     ],
+    "pre_init_hook": "pre_init_hook",
 }
