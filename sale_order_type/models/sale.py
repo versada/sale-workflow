@@ -1,6 +1,8 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 # Copyright 2020 Tecnativa - Pedro M. Baeza
 
+from datetime import datetime, timedelta
+
 from odoo import _, api, fields, models
 
 
@@ -12,10 +14,11 @@ class SaleOrder(models.Model):
         string="Type",
         compute="_compute_sale_type_id",
         store=True,
-        readonly=True,
+        readonly=False,
         states={
-            "draft": [("readonly", False)],
-            "sent": [("readonly", False)],
+            "sale": [("readonly", True)],
+            "done": [("readonly", True)],
+            "cancel": [("readonly", True)],
         },
         default=lambda so: so._default_type_id(),
         ondelete="restrict",
@@ -27,6 +30,19 @@ class SaleOrder(models.Model):
     def _default_type_id(self):
         return self.env["sale.order.type"].search(
             [("company_id", "in", [self.env.company.id, False])], limit=1
+        )
+
+    @api.model
+    def _default_sequence_id(self):
+        """We get the sequence in same way the core next_by_code method does so we can
+        get the proper default sequence"""
+        force_company = self.env.context.get("force_company")
+        if not force_company:
+            force_company = self.company_id.id or self.env.company.id
+        return self.env["ir.sequence"].search(
+            [("code", "=", "sale.order"), ("company_id", "in", [force_company, False])],
+            order="company_id",
+            limit=1,
         )
 
     @api.depends("partner_id", "company_id")
@@ -64,6 +80,17 @@ class SaleOrder(models.Model):
                 vals.update({"pricelist_id": order_type.pricelist_id})
             if order_type.incoterm_id:
                 vals.update({"incoterm": order_type.incoterm_id})
+            if order_type.analytic_account_id:
+                vals.update({"analytic_account_id": order_type.analytic_account_id})
+            if order_type.quotation_validity_days:
+                vals.update(
+                    {
+                        "validity_date": fields.Date.to_string(
+                            datetime.now()
+                            + timedelta(order_type.quotation_validity_days)
+                        )
+                    }
+                )
             if vals:
                 order.update(vals)
             # Order line values
@@ -84,13 +111,22 @@ class SaleOrder(models.Model):
     def write(self, vals):
         """A sale type could have a different order sequence, so we could
         need to change it accordingly"""
+        default_sequence = self._default_sequence_id()
         if vals.get("type_id"):
             sale_type = self.env["sale.order.type"].browse(vals["type_id"])
             if sale_type.sequence_id:
                 for record in self:
+                    # An order with a type without sequence would get the default one.
+                    # We want to avoid changing the order reference when the new
+                    # sequence has the same default sequence.
+                    ignore_default_sequence = (
+                        not record.type_id.sequence_id
+                        and sale_type.sequence_id == default_sequence
+                    )
                     if (
                         record.state in {"draft", "sent"}
                         and record.type_id.sequence_id != sale_type.sequence_id
+                        and not ignore_default_sequence
                     ):
                         new_vals = vals.copy()
                         new_vals["name"] = sale_type.sequence_id.next_by_id(

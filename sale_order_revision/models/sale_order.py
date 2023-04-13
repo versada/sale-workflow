@@ -26,3 +26,19 @@ class SaleOrder(models.Model):
             "Order Reference and revision must be unique per Company.",
         )
     ]
+
+    def _prepare_revision_data(self, new_revision):
+        vals = super()._prepare_revision_data(new_revision)
+        vals.update({"state": "cancel"})
+        return vals
+
+    def action_view_revisions(self):
+        self.ensure_one()
+        result = self.env["ir.actions.actions"]._for_xml_id("sale.action_orders")
+        result["domain"] = ["|", ("active", "=", False), ("active", "=", True)]
+        result["context"] = {
+            "active_test": 0,
+            "search_default_current_revision_id": self.id,
+            "default_current_revision_id": self.id,
+        }
+        return result
