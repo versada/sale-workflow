@@ -2,6 +2,8 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 from unittest.mock import patch
 
+from odoo.tests import tagged
+
 from odoo.addons.account.models.account_payment_method import AccountPaymentMethod
 from odoo.addons.sale_automatic_workflow.tests.common import (
     TestAutomaticWorkflowMixin,
@@ -9,6 +11,7 @@ from odoo.addons.sale_automatic_workflow.tests.common import (
 )
 
 
+@tagged("post_install", "-at_install")
 class TestAutomaticWorkflowPaymentMode(TestCommon, TestAutomaticWorkflowMixin):
     @classmethod
     def setUpClass(cls):
