@@ -136,6 +136,12 @@ class TestSaleAdvancePayment(common.TransactionCase):
                 "currency_id": cls.currency_usd.id,
             }
         )
+        # Force order currency to USD to make sure that company and
+        # order currencies are different.
+        cls.sale_order_1.currency_id = cls.currency_usd
+        # default currency_id for wizard is from pricelist so making
+        # sure the pricelist currency is the same as in order.
+        cls.sale_order_1.pricelist_id.currency_id = cls.currency_usd
 
     def test_01_sale_advance_payment(self):
         self.assertEqual(
