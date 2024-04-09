@@ -14,6 +14,7 @@
     "depends": ["sale"],
     "data": [
         "wizard/cancel_reason_view.xml",
+        "wizard/mass_cancel_orders_view.xml",
         "view/sale_view.xml",
         "security/ir.model.access.csv",
         "data/sale_order_cancel_reason.xml",
