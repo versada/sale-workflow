@@ -14,7 +14,8 @@ class SaleOrderLine(models.Model):
     def _get_product_qty_delivered_received_field(self):
         return "qty_delivered"
 
-    def _compute_qty_delivered(self):
-        res = super()._compute_qty_delivered()
-        self.mapped("order_id").update_order_container_deposit_quantity()
-        return res
+    def _get_protected_fields(self):
+        protected_fields = super()._get_protected_fields()
+        if self.env.context.get("update_order_container_deposit_quantity", False):
+            protected_fields.remove("product_uom_qty")
+        return protected_fields

@@ -2,6 +2,8 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl-3.0)
 from freezegun import freeze_time
 
+from odoo.fields import Command
+from odoo.tests import tagged
 from odoo.tests.common import Form
 
 from odoo.addons.sale_order_product_recommendation.tests import (
@@ -9,6 +11,7 @@ from odoo.addons.sale_order_product_recommendation.tests import (
 )
 
 
+@tagged("post_install", "-at_install")
 @freeze_time("2021-10-02 15:30:00", tick=True)
 class PackagingRecommendationCase(test_recommendation_common.RecommendationCase):
     @classmethod
@@ -25,9 +28,8 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
                     "name": "Dozen",
                     "product_id": cls.prod_1.id,
                     "qty": 12,
-                    "sales_default": True,
                     "sales": True,
-                    "sequence": 20,
+                    "sequence": 1,
                 },
                 # It can be also sold in big boxes
                 {
@@ -47,7 +49,7 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
                 },
             ]
         )
-        # Product 2 has only one sale packaging, but by default is sold by units
+        # Product 2 has only one sale packaging, used by default
         cls.prod_2_dozen = cls.env["product.packaging"].create(
             {
                 "name": "Dozen",
@@ -65,7 +67,7 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
             [
                 {
                     "product_id": self.prod_2.id,
-                    "product_packaging_id": False,
+                    "product_packaging_id": self.prod_2_dozen.id,
                     "product_packaging_qty": 0,
                     "units_included": 0,
                 },
@@ -88,11 +90,13 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
         """User makes changes in lines, and they behave as expected."""
         wiz_f = Form(self.wizard())
         with wiz_f.line_ids.edit(0) as line:
-            self.assertFalse(line.product_packaging_id)
+            # Setting to zero works as expected
+            line.product_packaging_qty = 0
+            self.assertEqual(line.product_packaging_id, self.prod_2_dozen)
             self.assertEqual(line.product_packaging_qty, 0)
             self.assertEqual(line.units_included, 0)
             # I want to sell 2 dozens of product 2
-            line.product_packaging_id = self.prod_2_dozen
+            self.assertEqual(line.product_packaging_id, self.prod_2_dozen)
             self.assertEqual(line.product_packaging_qty, 0)
             self.assertEqual(line.units_included, 0)
             line.product_packaging_qty = 2
@@ -119,10 +123,10 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
             line.product_packaging_id = self.prod_1_dozen
             self.assertEqual(line.product_packaging_qty, 1)
             self.assertEqual(line.units_included, 12)
-            line.product_packaging_qty = 10
+            line.product_packaging_qty = 9
             self.assertEqual(line.product_packaging_id, self.prod_1_dozen)
-            self.assertEqual(line.product_packaging_qty, 10)
-            self.assertEqual(line.units_included, 120)
+            self.assertEqual(line.product_packaging_qty, 9)
+            self.assertEqual(line.units_included, 108)
         # After saving, the SO has the expected values
         wiz = wiz_f.save()
         wiz.action_accept()
@@ -144,8 +148,60 @@ class PackagingRecommendationCase(test_recommendation_common.RecommendationCase)
                 {
                     "product_id": self.prod_1.id,
                     "product_packaging_id": self.prod_1_dozen.id,
-                    "product_packaging_qty": 10,
-                    "product_uom_qty": 120,
+                    "product_packaging_qty": 9,
+                    "product_uom_qty": 108,
+                },
+            ],
+        )
+
+    def test_preexisting_product(self):
+        self.new_so.order_line = [
+            Command.create(
+                {
+                    "product_id": self.prod_1.id,
+                    "product_uom_qty": 12,
+                    "qty_delivered_method": "manual",
+                }
+            )
+        ]
+        wiz_f = Form(self.wizard())
+        with wiz_f.line_ids.edit(1) as line:
+            self.assertEqual(line.product_id, self.prod_1)
+            self.assertEqual(line.product_packaging_id, self.prod_1_dozen)
+            self.assertEqual(line.product_packaging_qty, 1)
+            self.assertEqual(line.units_included, 12)
+            line.product_packaging_qty = 9
+            self.assertEqual(line.product_packaging_id, self.prod_1_dozen)
+            self.assertEqual(line.product_packaging_qty, 9)
+            self.assertEqual(line.units_included, 108)
+        wiz = wiz_f.save()
+        wiz.action_accept()
+        self.assertRecordValues(
+            self.new_so.order_line,
+            [
+                {
+                    "product_id": self.prod_1.id,
+                    "product_packaging_id": self.prod_1_dozen.id,
+                    "product_packaging_qty": 9,
+                    "product_uom_qty": 108,
+                },
+            ],
+        )
+
+    def test_no_packaging_user(self):
+        self.env.user.groups_id -= self.env.ref("product.group_stock_packaging")
+        wiz_f = Form(self.wizard())
+        with wiz_f.line_ids.edit(2) as line:
+            self.assertEqual(line.product_id, self.prod_1)
+            line.units_included = 12
+        wizard = wiz_f.save()
+        wizard.action_accept()
+        self.assertRecordValues(
+            self.new_so.order_line,
+            [
+                {
+                    "product_id": self.prod_1.id,
+                    "product_uom_qty": 12,
                 },
             ],
         )

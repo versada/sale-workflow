@@ -1,7 +1,7 @@
 # Copyright 2017 Tecnativa - Jairo Llopis
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo.tests import TransactionCase
+from odoo.tests import TransactionCase, new_test_user
 
 from odoo.addons.base.tests.common import DISABLED_MAIL_CONTEXT
 
@@ -10,9 +10,20 @@ class RecommendationCase(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.env = cls.env["base"].with_context(**DISABLED_MAIL_CONTEXT).env
         # Make sure user has UoM activated for Forms to work
-        cls.env.user.groups_id = [(4, cls.env.ref("uom.group_uom").id)]
+        cls.user_salesman = new_test_user(
+            cls.env,
+            "test_recommendation",
+            "sales_team.group_sale_salesman",
+            DISABLED_MAIL_CONTEXT,
+        )
+        cls.user_invoice = new_test_user(
+            cls.env,
+            "test_recommendation_invoice",
+            "account.group_account_invoice",
+            DISABLED_MAIL_CONTEXT,
+        )
+        cls.env = cls.user_salesman.env
         cls.pricelist = cls.env["product.pricelist"].create(
             {
                 "name": "Pricelist for test",
@@ -27,12 +38,16 @@ class RecommendationCase(TransactionCase):
                 "property_product_pricelist": cls.pricelist.id,
             }
         )
+        cls.cat_a, cls.cat_b = cls.env["product.category"].create(
+            [{"name": "A"}, {"name": "B"}]
+        )
         cls.product_obj = cls.env["product.product"]
         cls.prod_1 = cls.product_obj.create(
             {
                 "name": "Test Product 1",
                 "detailed_type": "service",
                 "list_price": 25.00,
+                "categ_id": cls.cat_b.id,
             }
         )
         cls.prod_2 = cls.product_obj.create(
@@ -40,6 +55,7 @@ class RecommendationCase(TransactionCase):
                 "name": "Test Product 2",
                 "detailed_type": "service",
                 "list_price": 50.00,
+                "categ_id": cls.cat_b.id,
             }
         )
         cls.prod_3 = cls.product_obj.create(
@@ -47,10 +63,13 @@ class RecommendationCase(TransactionCase):
                 "name": "Test Product 3",
                 "detailed_type": "service",
                 "list_price": 75.00,
+                "categ_id": cls.cat_a.id,
+                "default_code": "TEST-PROD-3",
             }
         )
         # Create old sale orders to have searchable history
         # (Remember to change the dates if the tests fail)
+        cls.env = cls.env(user=cls.user_salesman)
         cls.order1 = cls.env["sale.order"].create(
             {
                 "partner_id": cls.partner.id,
@@ -132,10 +151,10 @@ class RecommendationCase(TransactionCase):
             .with_context(active_id=self.new_so.id)
             .create({})
         )
-        wizard._generate_recommendations()
+        wizard.generate_recommendations()
         return wizard
 
     def enable_force_zero_units_included(self):
-        self.settings = self.env["res.config.settings"].create({})
+        self.settings = self.env["res.config.settings"].sudo().create({})
         self.settings.force_zero_units_included = True
         self.settings.set_values()

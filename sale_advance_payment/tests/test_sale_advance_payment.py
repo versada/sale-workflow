@@ -1,7 +1,6 @@
 # Copyright (C) 2021 ForgeFlow S.L.
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/lgpl.html)
 
-
 from odoo import fields
 from odoo.exceptions import ValidationError
 from odoo.tests import common, tagged
@@ -184,14 +183,14 @@ class TestSaleAdvancePayment(common.TransactionCase):
                 {
                     "journal_id": self.journal_eur_bank.id,
                     "payment_type": "inbound",
-                    "amount_advance": 10,
+                    "amount_advance": 100,
                     "order_id": self.sale_order_1.id,
                 }
             )
         )
         advance_payment_1.make_advance_payment()
 
-        self.assertEqual(self.sale_order_1.amount_residual, 3588.0)
+        self.assertEqual(self.sale_order_1.amount_residual, 3480)
 
         # Create Advance Payment 2 - USD - cash
         advance_payment_2 = (
@@ -208,7 +207,7 @@ class TestSaleAdvancePayment(common.TransactionCase):
         )
         advance_payment_2.make_advance_payment()
 
-        self.assertEqual(round(self.sale_order_1.amount_residual, 2), 3388.0)
+        self.assertEqual(self.sale_order_1.amount_residual, 3280)
 
         # Confirm Sale Order
         self.sale_order_1.action_confirm()
@@ -221,13 +220,13 @@ class TestSaleAdvancePayment(common.TransactionCase):
                 {
                     "journal_id": self.journal_eur_cash.id,
                     "payment_type": "inbound",
-                    "amount_advance": 10,
+                    "amount_advance": 250,
                     "order_id": self.sale_order_1.id,
                 }
             )
         )
         advance_payment_3.make_advance_payment()
-        self.assertEqual(self.sale_order_1.amount_residual, 3376.0)
+        self.assertEqual(self.sale_order_1.amount_residual, 2980)
 
         # Create Advance Payment 4 - USD - bank
         advance_payment_4 = (
@@ -243,7 +242,7 @@ class TestSaleAdvancePayment(common.TransactionCase):
             )
         )
         advance_payment_4.make_advance_payment()
-        self.assertEqual(round(self.sale_order_1.amount_residual, 2), 2976.0)
+        self.assertEqual(self.sale_order_1.amount_residual, 2580)
 
         # Check that the outbound amount is not greated than the
         # amount paid in advanced (in EUR)
@@ -274,7 +273,7 @@ class TestSaleAdvancePayment(common.TransactionCase):
         payment_list = [100 * rate, 200, 250 * rate, 400]
         payments = invoice.invoice_outstanding_credits_debits_widget
         result = [d["amount"] for d in payments["content"]]
-        self.assertNotEqual(set(payment_list), set(result))
+        self.assertEqual(set(payment_list), set(result))
 
     def test_02_residual_amount_with_invoice(self):
         self.assertEqual(
@@ -326,7 +325,7 @@ class TestSaleAdvancePayment(common.TransactionCase):
                 "payment_difference_handling": "open",
             }
         )._create_payments()
-        self.assertEqual(self.sale_order_1.amount_residual, 2200.0)
+        self.assertEqual(self.sale_order_1.amount_residual, 2200)
 
     def test_03_residual_amount_big_pre_payment(self):
         self.assertEqual(
