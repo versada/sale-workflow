@@ -4,7 +4,7 @@
         <t t-call="web.external_layout">
             <t t-set="doc" t-value="doc.with_context({'lang':doc.partner_id.lang})" />
             <div class="page">
-                <div class="oe_structure" />
+                <div id="oe_structure_div_01" class="oe_structure" />
                 <div class="row">
                     <div class="col-xs-6">
                         <div
@@ -160,7 +160,7 @@
                 </div>
 
                 <p t-field="doc.note" />
-                <div class="oe_structure" />
+                <div id="oe_structure_div_02" class="oe_structure" />
             </div>
         </t>
     </template>

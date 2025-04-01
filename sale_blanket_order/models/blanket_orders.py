@@ -1,7 +1,7 @@
 # Copyright 2018 ACSONE SA/NV
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import SUPERUSER_ID, _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import float_is_zero
 from odoo.tools.misc import format_date
@@ -62,13 +62,6 @@ class BlanketOrder(models.Model):
         required=True,
     )
     currency_id = fields.Many2one("res.currency", related="pricelist_id.currency_id")
-    analytic_account_id = fields.Many2one(
-        comodel_name="account.analytic.account",
-        string="Analytic Account",
-        copy=False,
-        check_company=True,
-        domain="['|', ('company_id', '=', False), ('company_id', '=', company_id)]",
-    )
     payment_term_id = fields.Many2one(
         "account.payment.term",
         string="Payment Terms",
@@ -110,7 +103,8 @@ class BlanketOrder(models.Model):
     sale_count = fields.Integer(compute="_compute_sale_count")
 
     fiscal_position_id = fields.Many2one(
-        "account.fiscal.position", string="Fiscal Position"
+        "account.fiscal.position",
+        check_company=True,
     )
 
     amount_untaxed = fields.Monetary(
@@ -236,15 +230,15 @@ class BlanketOrder(models.Model):
 
         if self.partner_id.user_id:
             values["user_id"] = self.partner_id.user_id.id
-        if self.partner_id.team_id:
-            values["team_id"] = self.partner_id.team_id.id
+        if self.partner_id.user_id.sale_team_id:
+            values["team_id"] = self.partner_id.user_id.sale_team_id.id
         self.update(values)
 
     def unlink(self):
         for order in self:
             if order.state not in ("draft", "expired") or order._check_active_orders():
                 raise UserError(
-                    _(
+                    self.env._(
                         "You can not delete an open blanket or "
                         "with active sale orders! "
                         "Try to cancel it before."
@@ -256,12 +250,12 @@ class BlanketOrder(models.Model):
         try:
             today = fields.Date.today()
             for order in self:
-                assert order.validity_date, _("Validity date is mandatory")
-                assert order.validity_date > today, _(
+                assert order.validity_date, self.env._("Validity date is mandatory")
+                assert order.validity_date > today, self.env._(
                     "Validity date must be in the future"
                 )
-                assert order.partner_id, _("Partner is mandatory")
-                assert len(order.line_ids) > 0, _("Must have some lines")
+                assert order.partner_id, self.env._("Partner is mandatory")
+                assert len(order.line_ids) > 0, self.env._("Must have some lines")
                 order.line_ids._validate()
         except AssertionError as e:
             raise UserError(e) from e
@@ -292,7 +286,7 @@ class BlanketOrder(models.Model):
         for order in self:
             if order._check_active_orders():
                 raise UserError(
-                    _(
+                    self.env._(
                         "You can not delete a blanket order with opened "
                         "sale orders! "
                         "Try to cancel them before."
@@ -419,9 +413,9 @@ class BlanketOrderLine(models.Model):
     product_uom = fields.Many2one("uom.uom", string="Unit of Measure")
     price_unit = fields.Float(string="Price", digits="Product Price")
     taxes_id = fields.Many2many(
-        "account.tax",
-        string="Taxes",
-        domain=["|", ("active", "=", False), ("active", "=", True)],
+        comodel_name="account.tax",
+        context={"active_test": False},
+        check_company=True,
     )
     date_schedule = fields.Date(string="Scheduled Date")
     original_uom_qty = fields.Float(
@@ -483,12 +477,14 @@ class BlanketOrderLine(models.Model):
     def _compute_display_name(self):
         if self.env.context.get("from_sale_order"):
             for record in self:
-                name = "[%s]" % record.order_id.name
+                name = f"[{record.order_id.name}]"
                 if record.date_schedule:
                     formatted_date = format_date(record.env, record.date_schedule)
-                    name += " - {}: {}".format(_("Date Scheduled"), formatted_date)
+                    name += " - {}: {}".format(
+                        self.env._("Date Scheduled"), formatted_date
+                    )
                 name += " ({}: {} {})".format(
-                    _("remaining"),
+                    self.env._("remaining"),
                     record.remaining_uom_qty,
                     record.product_uom.name,
                 )
@@ -511,12 +507,11 @@ class BlanketOrderLine(models.Model):
         product_currency = None
         if rule_id:
             pricelist_item = PricelistItem.browse(rule_id)
-            if pricelist_item.pricelist_id.discount_policy == "without_discount":
+            if pricelist_item._show_discount():
                 while (
                     pricelist_item.base == "pricelist"
                     and pricelist_item.base_pricelist_id
-                    and pricelist_item.base_pricelist_id.discount_policy
-                    == "without_discount"
+                    and pricelist_item._show_discount()
                 ):
                     price, rule_id = pricelist_item.base_pricelist_id.with_context(
                         uom=uom.id
@@ -571,9 +566,6 @@ class BlanketOrderLine(models.Model):
             currency=self.currency_id,
         )
 
-        if self.order_id.pricelist_id.discount_policy == "with_discount":
-            return pricelist_price
-
         if not self.pricelist_item_id:
             # No pricelist rule found => no discount from pricelist
             return pricelist_price
@@ -590,7 +582,7 @@ class BlanketOrderLine(models.Model):
 
         return self.pricelist_item_id._compute_price_before_discount(
             product=self.product_id,
-            quantity=self.product_uom_qty or 1.0,
+            quantity=self.original_uom_qty or 1.0,
             uom=self.product_uom,
             date=fields.Date.today(),
             currency=self.currency_id,
@@ -616,15 +608,9 @@ class BlanketOrderLine(models.Model):
             self.name = name
 
             fpos = self.order_id.fiscal_position_id
-            if self.env.uid == SUPERUSER_ID:
-                company_id = self.env.company.id
-                self.taxes_id = fpos.map_tax(
-                    self.product_id.taxes_id.filtered(
-                        lambda r: r.company_id.id == company_id
-                    )
-                )
-            else:
-                self.taxes_id = fpos.map_tax(self.product_id.taxes_id)
+            self.taxes_id = fpos.map_tax(
+                self.product_id.taxes_id._filter_taxes_by_company(self.company_id)
+            )
 
     @api.depends(
         "sale_lines.order_id.state",
@@ -682,10 +668,10 @@ class BlanketOrderLine(models.Model):
             for line in self:
                 assert (
                     not line.display_type and line.price_unit > 0.0
-                ) or line.display_type, _("Price must be greater than zero")
+                ) or line.display_type, self.env._("Price must be greater than zero")
                 assert (
                     not line.display_type and line.original_uom_qty > 0.0
-                ) or line.display_type, _("Quantity must be greater than zero")
+                ) or line.display_type, self.env._("Quantity must be greater than zero")
         except AssertionError as e:
             raise UserError(e) from e
 
@@ -729,7 +715,7 @@ class BlanketOrderLine(models.Model):
             lambda line: line.display_type != values.get("display_type")
         ):
             raise UserError(
-                _(
+                self.env._(
                     """
                     You cannot change the type of a sale order line.
                     Instead you should delete the current line and create a new line
