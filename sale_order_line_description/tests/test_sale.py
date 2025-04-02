@@ -7,35 +7,35 @@ from odoo.tests import tagged
 
 @tagged("post_install", "-at_install")
 class TestSaleOrderLineDescriptionChange(common.TransactionCase):
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Create models
-        self.sale_order_model = self.env["sale.order"]
-        self.sale_order_line_model = self.env["sale.order.line"]
-        self.partner_model = self.env["res.partner"]
-        self.product_model = self.env["product.product"]
-        self.user_model = self.env["res.users"].with_context(
+        cls.sale_order_model = cls.env["sale.order"]
+        cls.sale_order_line_model = cls.env["sale.order.line"]
+        cls.partner_model = cls.env["res.partner"]
+        cls.product_model = cls.env["product.product"]
+        cls.user_model = cls.env["res.users"].with_context(
             no_reset_password=True, mail_create_nosubscribe=True
         )
 
-        # Create two different users
-        self.group_only_sale_description = self.env.ref(
+        # Create user group
+        cls.group_only_sale_description = cls.env.ref(
             "sale_order_line_description.group_use_product_description_per_so_line"
         )
-        self.user_1 = self._create_user("TestUser1")
-        self.user_2 = self._create_user("TestUser2", self.group_only_sale_description)
 
         # Create the sale order
-        self.partner = self.partner_model.create({"name": "Test partner"})
-        self.sale_order = self.sale_order_model.create({"partner_id": self.partner.id})
+        cls.partner = cls.partner_model.create({"name": "Test partner"})
+        cls.sale_order = cls.sale_order_model.create({"partner_id": cls.partner.id})
 
-        self.product = self.product_model.create(
+        cls.product = cls.product_model.create(
             {
                 "name": "Test product",
                 "description_sale": "Sale description for test product",
             }
         )
+        cls.line_values = {"order_id": cls.sale_order.id, "product_id": cls.product.id}
 
     def _create_user(self, name, group=None):
         groups_id = self.env.user.groups_id
@@ -50,13 +50,14 @@ class TestSaleOrderLineDescriptionChange(common.TransactionCase):
             }
         )
 
-    def test_check_sale_order_line_description(self):
-        line_values = {"order_id": self.sale_order.id, "product_id": self.product.id}
-
-        # Create sale order line with TestUser1
+    def test_01_check_sale_order_line_description_standard(self):
+        # GIVEN
+        self.user_1 = self._create_user("TestUser1")
+        # WHEN
         sale_order_line = self.sale_order_line_model.with_user(self.user_1).create(
-            line_values.copy()
+            self.line_values.copy()
         )
+        # THEN
         self.assertEqual(
             sale_order_line.name,
             "\n".join([self.product.name, self.product.description_sale]),
@@ -64,10 +65,14 @@ class TestSaleOrderLineDescriptionChange(common.TransactionCase):
             "product description and product sale description",
         )
 
-        # Create sale order line with TestUser2
+    def test_02_check_sale_order_line_description_with_group(self):
+        # GIVEN
+        self.user_2 = self._create_user("TestUser2", self.group_only_sale_description)
+        # WHEN
         sale_order_line = self.sale_order_line_model.with_user(self.user_2).create(
-            line_values.copy()
+            self.line_values.copy()
         )
+        # THEN
         self.assertEqual(
             sale_order_line.name,
             self.product.description_sale,

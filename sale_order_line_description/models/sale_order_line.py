@@ -1,19 +1,15 @@
 # Copyright 2013-15 Agile Business Group sagl (<http://www.agilebg.com>)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import api, models
+from odoo import models
 
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
-    @api.onchange("product_id")
-    def product_id_change(self):
-        res = super().product_id_change()
-        if not self.product_id:  # pragma: no cover
-            return res
+    def _get_sale_order_line_multiline_description_sale(self):
         if (
-            self.user_has_groups(
+            self.env.user.has_group(
                 "sale_order_line_description."
                 "group_use_product_description_per_so_line"
             )
@@ -24,5 +20,5 @@ class SaleOrderLine(models.Model):
                 product = product.with_context(
                     lang=self.order_id.partner_id.lang,
                 )
-            self.name = product.description_sale
-        return res
+            return product.description_sale
+        return super()._get_sale_order_line_multiline_description_sale()
