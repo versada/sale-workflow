@@ -8,7 +8,7 @@ from odoo.tests import tagged
 @tagged("post_install", "-at_install")
 class TestSaleOrderLineDescriptionChange(common.TransactionCase):
     def setUp(self):
-        super(TestSaleOrderLineDescriptionChange, self).setUp()
+        super().setUp()
 
         # Create models
         self.sale_order_model = self.env["sale.order"]
