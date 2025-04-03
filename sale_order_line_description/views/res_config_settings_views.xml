@@ -1,0 +1,17 @@
+<odoo>
+    <record id="view_sales_config" model="ir.ui.view">
+        <field name="name">sale settings</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='no_edit_order']" position="after">
+                <setting
+                    string="Sales Order Line Description"
+                    help="Allows you to use only product sale description on the sales order line"
+                >
+                    <field name="group_use_product_description_per_so_line" />
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>
