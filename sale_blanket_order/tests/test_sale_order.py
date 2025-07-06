@@ -180,3 +180,39 @@ class TestSaleOrder(common.TransactionCase):
             ]
         )
         self.assertEqual(so_line.blanket_order_line, bo_line_assigned)
+
+    def test_03_create_sale_order_bo_line_not_enough_qty(self):
+        blanket_order = self.create_blanket_order_02()
+        blanket_order.sudo().action_confirm()
+        bo_lines = self.blanket_order_line_obj.search(
+            [("order_id", "=", blanket_order.id)]
+        )
+        self.assertEqual(len(bo_lines), 2)
+        so = self.sale_order_obj.create(
+            {
+                "partner_id": self.partner.id,
+                "order_line": [
+                    fields.Command.create(
+                        {
+                            "name": self.product.name,
+                            "product_id": self.product.id,
+                            "product_uom_qty": 5.0,
+                            "product_uom": self.product.uom_po_id.id,
+                            "price_unit": 10.0,
+                        },
+                    )
+                ],
+            }
+        )
+        so_line = so.order_line[0]
+        so_line.onchange_product_id()
+        bo_line_assigned = self.blanket_order_line_obj.search(
+            [
+                ("order_id", "=", blanket_order.id),
+                ("product_id", "=", self.product.id),
+                ("date_schedule", "=", False),
+            ]
+        )
+        self.assertEqual(so_line.blanket_order_line, bo_line_assigned)
+        so_line.product_uom_qty = 10000
+        self.assertFalse(so_line.blanket_order_line)

@@ -63,10 +63,10 @@ Authors
 Contributors
 ------------
 
--  Stefan Rijnhart <stefan@opener.amsterdam>
--  Jim Hoefnagels <jim.hoefnagels@dynapps.be>
--  Reed Hayashikawa <rhayashikawa@opensourceintegrators.com>
--  Alejandro Padron <alejandro.padron@braintec.com>
+- Stefan Rijnhart <stefan@opener.amsterdam>
+- Jim Hoefnagels <jim.hoefnagels@dynapps.be>
+- Reed Hayashikawa <rhayashikawa@opensourceintegrators.com>
+- Alejandro Padron <alejandro.padron@braintec.com>
 
 Maintainers
 -----------
