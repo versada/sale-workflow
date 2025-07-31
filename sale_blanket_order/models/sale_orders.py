@@ -149,15 +149,6 @@ class SaleOrderLine(models.Model):
                 product_currency=self.order_id.currency_id,
             )
 
-    def write(self, vals):
-        res = super().write(vals)
-        if "product_uom_qty" in vals:
-            for line in self:
-                bo_line = line.blanket_order_line
-                if bo_line and bo_line not in line._get_eligible_bo_lines():
-                    line.blanket_order_line = False
-        return res
-
     @api.onchange("blanket_order_line")
     def onchange_blanket_order_line(self):
         bol = self.blanket_order_line

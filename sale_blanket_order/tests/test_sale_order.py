@@ -214,5 +214,6 @@ class TestSaleOrder(common.TransactionCase):
             ]
         )
         self.assertEqual(so_line.blanket_order_line, bo_line_assigned)
+        # Changing quantity should not unset bol.
         so_line.product_uom_qty = 10000
-        self.assertFalse(so_line.blanket_order_line)
+        self.assertEqual(so_line.blanket_order_line, bo_line_assigned)
