@@ -18,7 +18,6 @@ class SaleOrderLine(models.Model):
         other_lines = self.filtered(
             lambda line: line.product_id.type == "service"
             or not line.order_id.invoice_policy
-            or not line.order_id.invoice_policy_required
         )
         super(SaleOrderLine, other_lines)._compute_qty_to_invoice()
         for line in self - other_lines:
@@ -44,7 +43,6 @@ class SaleOrderLine(models.Model):
             or not line.order_id.invoice_policy
             or line.order_id.invoice_policy == line.product_id.invoice_policy
             or line.state not in ["sale", "done"]
-            or not line.order_id.invoice_policy_required
         )
         super(SaleOrderLine, other_lines)._compute_untaxed_amount_to_invoice()
         for line in self - other_lines:
