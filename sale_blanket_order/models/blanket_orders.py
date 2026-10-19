@@ -112,6 +112,13 @@ class BlanketOrder(models.Model):
         default=lambda self: self.env["crm.team"]._get_default_team_id(),
         states=READONLY_FIELD_STATES,
     )
+    tag_ids = fields.Many2many(
+        comodel_name="crm.tag",
+        relation="sale_blanket_order_tag_rel",
+        column1="blanket_order_id",
+        column2="tag_id",
+        string="Tags",
+    )
     company_id = fields.Many2one(
         comodel_name="res.company",
         required=True,
@@ -143,30 +150,35 @@ class BlanketOrder(models.Model):
         string="Original quantity",
         compute="_compute_uom_qty",
         search="_search_original_uom_qty",
+        digits="Product Unit of Measure",
         default=0.0,
     )
     ordered_uom_qty = fields.Float(
         string="Ordered quantity",
         compute="_compute_uom_qty",
         search="_search_ordered_uom_qty",
+        digits="Product Unit of Measure",
         default=0.0,
     )
     invoiced_uom_qty = fields.Float(
         string="Invoiced quantity",
         compute="_compute_uom_qty",
         search="_search_invoiced_uom_qty",
+        digits="Product Unit of Measure",
         default=0.0,
     )
     remaining_uom_qty = fields.Float(
         string="Remaining quantity",
         compute="_compute_uom_qty",
         search="_search_remaining_uom_qty",
+        digits="Product Unit of Measure",
         default=0.0,
     )
     delivered_uom_qty = fields.Float(
         string="Delivered quantity",
         compute="_compute_uom_qty",
         search="_search_delivered_uom_qty",
+        digits="Product Unit of Measure",
         default=0.0,
     )
 
@@ -175,7 +187,9 @@ class BlanketOrder(models.Model):
 
     @api.depends("line_ids")
     def _compute_line_count(self):
-        self.line_count = len(self.mapped("line_ids"))
+        self.line_count = len(
+            self.mapped("line_ids").filtered(lambda l: not l.display_type)
+        )
 
     def _compute_sale_count(self):
         for blanket_order in self:
@@ -326,7 +340,7 @@ class BlanketOrder(models.Model):
         action = self.env["ir.actions.act_window"]._for_xml_id(
             "sale_blanket_order.act_open_sale_blanket_order_lines_view_tree"
         )
-        lines = self.mapped("line_ids")
+        lines = self.mapped("line_ids").filtered(lambda l: not l.display_type)
         if len(lines) > 0:
             action["domain"] = [("id", "in", lines.ids)]
         return action
@@ -439,21 +453,34 @@ class BlanketOrderLine(models.Model):
         string="Original quantity", default=1, digits="Product Unit of Measure"
     )
     ordered_uom_qty = fields.Float(
-        string="Ordered quantity", compute="_compute_quantities", store=True
+        string="Ordered quantity",
+        compute="_compute_quantities",
+        store=True,
+        digits="Product Unit of Measure",
     )
     invoiced_uom_qty = fields.Float(
-        string="Invoiced quantity", compute="_compute_quantities", store=True
+        string="Invoiced quantity",
+        compute="_compute_quantities",
+        store=True,
+        digits="Product Unit of Measure",
     )
     remaining_uom_qty = fields.Float(
-        string="Remaining quantity", compute="_compute_quantities", store=True
+        string="Remaining quantity",
+        compute="_compute_quantities",
+        store=True,
+        digits="Product Unit of Measure",
     )
     remaining_qty = fields.Float(
         string="Remaining quantity in base UoM",
         compute="_compute_quantities",
         store=True,
+        digits="Product Unit of Measure",
     )
     delivered_uom_qty = fields.Float(
-        string="Delivered quantity", compute="_compute_quantities", store=True
+        string="Delivered quantity",
+        compute="_compute_quantities",
+        store=True,
+        digits="Product Unit of Measure",
     )
     sale_lines = fields.One2many(
         "sale.order.line",
@@ -653,15 +680,12 @@ class BlanketOrderLine(models.Model):
             )
             line.remaining_uom_qty = line.original_uom_qty - line.ordered_uom_qty
             line.remaining_qty = line.product_uom._compute_quantity(
-                line.remaining_uom_qty, line.product_id.uom_id
+                line.remaining_uom_qty, line.product_id.uom_id, round=False
             )
 
     def _validate(self):
         try:
             for line in self:
-                assert (
-                    not line.display_type and line.price_unit > 0.0
-                ) or line.display_type, _("Price must be greater than zero")
                 assert (
                     not line.display_type and line.original_uom_qty > 0.0
                 ) or line.display_type, _("Quantity must be greater than zero")
